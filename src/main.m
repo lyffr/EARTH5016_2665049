@@ -8,8 +8,8 @@ xc = dx/2:dx:W-dx/2;    % coordinate vector for cell centre positions [m]
 xf = 0:dx:W;            % coordinate vectore for cell face positions [m]
 
 % set time step size
-dt_adv = (complete here using eq. (7));
-dt_dff = (complete here using eq. (8));
+dt_adv = (dx/2) / abs(u0);
+dt_dff = (dx/2)^2 / k0;
 dt     = CFL * min(dt_adv,dt_dff); % time step [s]
 
 % set up ghosted index lists for boundary conditions
@@ -24,7 +24,7 @@ switch BC
 end
 
 % set initial condition for temperature at cell centres
-T   = (complete using eq. (2));   % initialise T array at Tr
+T   = T0 + dT*exp(-(xc-W/2)^2/(2*sgm0^2));  % initialise T array at Tr
 Tin = T;                                         % store initial condition for plotting
 Ta  = T;                                         % initialise analytical solution
 
@@ -66,8 +66,9 @@ while t <= tend
     T = T + dTdt * dt;
 
     % get analytical solution at time t
-    sgmt = (complete using eq. (4));
-    Ta   = (complete using eq. (3));
+    sgmt = sqrt(sgm0^2 + 2*k0*t);
+    Ta   = T0 + dT .* (sgm0./sgmt) .* exp( - (xshift).^2 ./ (2*sgmt.^2) );
+
 
     % plot model progress
     if ~mod(k,nop)
