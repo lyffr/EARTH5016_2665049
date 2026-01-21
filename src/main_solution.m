@@ -36,8 +36,20 @@ k = 0;  % initial time step count
 % initialise output figure with initial condition
 figure(1); clf
 makefig(xc,T,Tin,Ta,0);
-
-
+if strcmp(SCHEME, 'implicit')
+    At = speye(N,N) * 1/dt; % N x N sparse diagonal matrix with 1/dt on diagonal 
+    % use mapping array to add indices to index lists for spatial coefficients 
+    i = []; j = []; % initialise i,j as empty lists 
+    i = [i, ind3(2:end-1)]; j = [j, ind3(2:end-1)]; % centre stencil node i 
+    i = [i, ind3(2:end-1)]; j = [j, ind3(1:end-2)]; % left stencil node i-1 
+    i = [i, ind3(2:end-1)]; j = [j, ind3(3:end )]; % right stencil node i+1 
+    % add coefficient values to value list 
+    a = []; % initialise a as empty list 
+    a = [a, ( +2*k0/dx^2)]; % centre stencil node i 
+    a = [a, -(u0/2/dx- k0/dx^2)]; % left stencil node i-1 
+    a = [a, (u0/2/dx- k0/dx^2)]; % right stencil node i+1
+    Ax = sparse(i,j,a,N,N);
+end
 %*****  Solve Model Equations
 
 while t <= tend
@@ -47,24 +59,38 @@ while t <= tend
     k = k+1;
 
     % select time integration scheme
-    switch TINT
-        case 'FE1'  % 1st-order Forward Euler time integration scheme
+    switch SCHEME
+        case 'explicit'
+        switch TINT
+            case 'FE1'  % 1st-order Forward Euler time integration scheme
             
-            % get rate of change
-            dTdt = diffusion(T,k0,dx,ind3) ...
-                 + advection(T,u0,dx,ind5,ADVN);
+                % get rate of change
+                dTdt = diffusion(T,k0,dx,ind3) ...
+                    + advection(T,u0,dx,ind5,ADVN);
 
-        case 'RK2'  % 2nd-order Runge-Kutta time integration scheme
+            case 'RK2'  % 2nd-order Runge-Kutta time integration scheme
             
-            dTdt_half = diffusion(T               ,k0,dx,ind3) ...
+                dTdt_half = diffusion(T               ,k0,dx,ind3) ...
                       + advection(T               ,u0,dx,ind5,ADVN);
-            dTdt      = diffusion(T+dTdt_half*dt/2,k0,dx,ind3) ...
+                dTdt      = diffusion(T+dTdt_half*dt/2,k0,dx,ind3) ...
                       + advection(T+dTdt_half*dt/2,u0,dx,ind5,ADVN);
 
+        end
+        T = T + dTdt * dt;
+        case 'implicit'
+        switch TINT % select time integration scheme 
+            case 'BE1' % 1st-order Backward Euler (implicit) 
+            A = At + Ax; % get coefficient matrix 
+            b = At*T.'; % prepare forcing vector 
+            case 'CN2' % 2nd-order get-Nicolson (semi-implicit) 
+            A = At + Ax/2; % get coefficient matrix 
+            b = At*T.' - Ax*T.'/2; % get forcing vecotr 
+        end 
+        T = (A \ b).'; % solve linear system of equations
     end
 
     % update temperature
-    T = T + dTdt * dt;
+
     dist_raw = xc - (W/2 + u0*t); 
     xshift = dist_raw - W * round(dist_raw/W);
     % get analytical solution at time t
@@ -85,6 +111,7 @@ end
 Err = rms(T - Ta, 'all');
 
 disp(' ');
+disp(['Scheme Type:      ', SCHEME]);
 disp(['Advection scheme: ',ADVN]);
 disp(['Time integration scheme: ',TINT]);
 disp(['Numerical error = ',num2str(Err)]);
