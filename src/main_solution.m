@@ -16,15 +16,16 @@ dt     = CFL * min(dt_adv,dt_dff); % time step [s]
 switch BC
     case 'periodic'
         ind3 = [    N,1:N,1  ];  % 3-point stencil            |-- i-1 --|-- i --|-- i+1 --|
-        ind5 = [complete here];  % 5-point stencil  |-- i-2 --|-- i-1 --|-- i --|-- i+1 --|-- i+2 --|
+        ind5 = [N-1,N,1:N,1,2];  % 5-point stencil  |-- i-2 --|-- i-1 --|-- i --|-- i+1 --|-- i+2 --|
     case 'insulating'
         % example non-periodic indexing for N=4 
         ind3 = [   1,1:N,N   ];  % 3-point stencil            |-- i-1 --|-- i --|-- i+1 --|
-        ind5 = [complete here];  % 5-point stencil  |-- i-2 --|-- i-1 --|-- i --|-- i+1 --|-- i+2 --|
+        ind5 = [1,1,1:N,N,N];  % 5-point stencil  |-- i-2 --|-- i-1 --|-- i --|-- i+1 --|-- i+2 --|
 end
 
 % set initial condition for temperature at cell centres
-T   = T0 + dT*exp(-(xc-W/2)^2/(2*sgm0^2));  % initialise T array at Tr
+T   = T0 + dT * exp( - (xc - W/2).^2 ./ (2*sgm0^2) );
+  % initialise T array at Tr
 Tin = T;                                         % store initial condition for plotting
 Ta  = T;                                         % initialise analytical solution
 
@@ -64,7 +65,8 @@ while t <= tend
 
     % update temperature
     T = T + dTdt * dt;
-
+    dist_raw = xc - (W/2 + u0*t); 
+    xshift = dist_raw - W * round(dist_raw/W);
     % get analytical solution at time t
     sgmt = sqrt(sgm0^2 + 2*k0*t);
     Ta   = T0 + dT .* (sgm0./sgmt) .* exp( - (xshift).^2 ./ (2*sgmt.^2) );
@@ -80,7 +82,7 @@ end
 
 
 %*****  calculate and display numerical error norm
-Err = (complete here);
+Err = rms(T - Ta, 'all');
 
 disp(' ');
 disp(['Advection scheme: ',ADVN]);
@@ -128,10 +130,9 @@ function dfdt = diffusion(f,k,dx,ind)
 % dfdt: diffusion rate of scalar field f
 
 % calculate diffusive flux of scalar field f
-q = (complete here);
-
+q = -k .* diff(f(ind)) ./ dx;
 % calculate diffusion flux balance for rate of change
-dfdt = (complete here);
+dfdt = -(q(2:end) - q(1:end-1)) ./ dx; 
 
 end
 
@@ -155,11 +156,11 @@ u_pos = max(0,u);    % positive velocity (to the right)
 u_neg = min(0,u);    % negative velocity (to the left)
 
 % get values on stencil nodes
-f_imm  = f(complete here);  % i-2
-f_im   = f(complete here);  % i-1
+f_imm  = f(ind(1:end-4));  % i-2
+f_im   = f(ind(2:end-3));  % i-1
 f_ic   = f(ind(3:end-2));  % i
-f_ip   = f(complete here);  % i+1
-f_ipp  = f(complete here);  % i+2
+f_ip   = f(ind(4:end-1));  % i+1
+f_ipp  = f(ind(5:end  ));  % i+2
 
 % get interpolated field values on i+1/2, i-1/2 cell faces
 switch ADVN
