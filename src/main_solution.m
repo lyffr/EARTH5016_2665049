@@ -37,19 +37,27 @@ k = 0;  % initial time step count
 figure(1); clf
 makefig(xc,T,Tin,Ta,0);
 if strcmp(SCHEME, 'implicit')
-    At = speye(N,N) * 1/dt; % N x N sparse diagonal matrix with 1/dt on diagonal 
-    % use mapping array to add indices to index lists for spatial coefficients 
-    i = []; j = []; % initialise i,j as empty lists 
-    i = [i, ind3(2:end-1)]; j = [j, ind3(2:end-1)]; % centre stencil node i 
-    i = [i, ind3(2:end-1)]; j = [j, ind3(1:end-2)]; % left stencil node i-1 
-    i = [i, ind3(2:end-1)]; j = [j, ind3(3:end )]; % right stencil node i+1 
-    % add coefficient values to value list 
-    a = []; % initialise a as empty list 
-    a = [a, ( +2*k0/dx^2)]; % centre stencil node i 
-    a = [a, -(u0/2/dx- k0/dx^2)]; % left stencil node i-1 
-    a = [a, (u0/2/dx- k0/dx^2)]; % right stencil node i+1
-    Ax = sparse(i,j,a,N,N);
+    At = speye(N,N) * (1/dt);
+
+    % stencil indices (length N)
+    ic = ind3(2:end-1);   % i
+    im = ind3(1:end-2);   % i-1
+    ip = ind3(3:end  );   % i+1
+
+    % build sparse triplets (length 3N)
+    i = [ic, ic, ic];
+    j = [ic, im, ip];
+
+    % Ax should represent -L, where L = k*d2/dx2 - u*d/dx (centered)
+    a_center = ( +2*k0/dx^2            ) * ones(1,N);
+    a_left   = ( -k0/dx^2 - u0/(2*dx)  ) * ones(1,N);
+    a_right  = ( -k0/dx^2 + u0/(2*dx)  ) * ones(1,N);
+
+    a = [a_center, a_left, a_right];
+
+    Ax = sparse(i, j, a, N, N);
 end
+
 %*****  Solve Model Equations
 
 while t <= tend
