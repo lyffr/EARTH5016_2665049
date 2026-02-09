@@ -33,8 +33,8 @@ Tbot = 1000;
 % --- Numerical controls ---
 CFL_T   = 0.25;     % smaller is safer (avoid T overshoot)
 CFL_P   = 0.2;
-tol_div = 1e-8;
-maxPIt  = 500;
+tol_div = 1e-10;
+maxPIt  = 1000;
 maxStep = 2000;
 plotEvery = 50;
 
